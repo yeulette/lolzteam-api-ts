@@ -1,0 +1,81 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  # ── 1. Test ──────────────────────────────────────────────────────────────
+  test:
+    name: Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ["18", "20", "22"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  # ── 2. Regenerate from OpenAPI schemas ───────────────────────────────────
+  codegen:
+    name: Regenerate API methods
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Download latest schemas
+        run: |
+          mkdir -p codegen/schemas
+          curl -fsSL "https://raw.githubusercontent.com/AS7RIDENIED/LOLZTEAM/main/Official%20Documentation/forum.json" \
+            -o codegen/schemas/forum.json
+          curl -fsSL "https://raw.githubusercontent.com/AS7RIDENIED/LOLZTEAM/main/Official%20Documentation/market.json" \
+            -o codegen/schemas/market.json
+
+      - name: Run code-generator
+        run: npm run codegen
+
+  # ── 3. Build & publish ───────────────────────────────────────────────────
+  publish:
+    name: Build & publish to npm
+    needs: codegen
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Required for npm provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
