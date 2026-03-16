@@ -941,7 +941,6 @@ lolzteam-ts/
 ├── tsconfig.cjs.json        ← CommonJS сборка
 ├── tsconfig.esm.json        ← ESM сборка
 ├── tsconfig.types.json      ← Сборка деклараций (.d.ts)
-├── test.ts                  ← Ручное тестирование (в .gitignore)
 └── LICENSE                  ← MIT
 ```
 
